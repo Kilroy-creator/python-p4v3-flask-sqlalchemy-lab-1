@@ -50,7 +50,7 @@ def get_earthquake(id):
 
 @app.route("/earthquakes/magnitude/<float:mag>")
 def earthquakes_by_magnitude(mag):
-    quakes = Earthquake.query.filter(Earthquake.magnitude == mag).all()
+    quakes = Earthquake.query.filter(Earthquake.magnitude >= mag).all()
 
     return jsonify({
         "count": len(quakes),
@@ -59,19 +59,10 @@ def earthquakes_by_magnitude(mag):
 
 
 # =====================
-# DB Setup + Seed
+# DB Setup
 # =====================
 with app.app_context():
     db.create_all()
-
-    if Earthquake.query.count() == 0:
-        db.session.add_all([
-            Earthquake(id=1, location="Chile", magnitude=9.0, year=1960),
-            Earthquake(id=2, location="Alaska", magnitude=9.2, year=1964),
-            Earthquake(id=3, location="Japan", magnitude=9.0, year=2011),
-            Earthquake(id=4, location="Indonesia", magnitude=8.6, year=2004)
-        ])
-        db.session.commit()
 
 
 if __name__ == "__main__":
