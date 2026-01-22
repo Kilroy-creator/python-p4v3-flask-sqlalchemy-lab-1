@@ -1,27 +1,78 @@
-# server/app.py
-#!/usr/bin/env python3
-
-from flask import Flask, make_response
-from flask_migrate import Migrate
-
-from models import db, Earthquake
+from flask import Flask, jsonify
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.json.compact = False
 
-migrate = Migrate(app, db)
-db.init_app(app)
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///earthquakes.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
 
 
-@app.route('/')
+# =====================
+# Model
+# =====================
+class Earthquake(db.Model):
+    __tablename__ = "earthquakes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    location = db.Column(db.String)
+    magnitude = db.Column(db.Float)
+    year = db.Column(db.Integer)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "magnitude": self.magnitude,
+            "location": self.location,
+            "year": self.year
+        }
+
+
+# =====================
+# Routes
+# =====================
+@app.route("/")
 def index():
-    body = {'message': 'Flask SQLAlchemy Lab 1'}
-    return make_response(body, 200)
-
-# Add views here
+    return "<h1>Earthquakes API</h1>"
 
 
-if __name__ == '__main__':
-    app.run(port=5555, debug=True)
+@app.route("/earthquakes/<int:id>")
+def get_earthquake(id):
+    quake = Earthquake.query.get(id)
+    if quake:
+        return jsonify(quake.to_dict()), 200
+
+    return jsonify({
+        "message": f"Earthquake {id} not found."
+    }), 404
+
+
+@app.route("/earthquakes/magnitude/<float:mag>")
+def earthquakes_by_magnitude(mag):
+    quakes = Earthquake.query.filter(Earthquake.magnitude == mag).all()
+
+    return jsonify({
+        "count": len(quakes),
+        "quakes": [q.to_dict() for q in quakes]
+    })
+
+
+# =====================
+# DB Setup + Seed
+# =====================
+with app.app_context():
+    db.create_all()
+
+    if Earthquake.query.count() == 0:
+        db.session.add_all([
+            Earthquake(id=1, location="Chile", magnitude=9.0, year=1960),
+            Earthquake(id=2, location="Alaska", magnitude=9.2, year=1964),
+            Earthquake(id=3, location="Japan", magnitude=9.0, year=2011),
+            Earthquake(id=4, location="Indonesia", magnitude=8.6, year=2004)
+        ])
+        db.session.commit()
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
